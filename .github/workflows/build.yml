@@ -9,10 +9,42 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout code
+      - name: 拉取仓库代码
         uses: actions/checkout@v4
-
-      - name: Build OpenWrt Firmware
-        uses: P3TERX/Actions-OpenWrt@main
         with:
-          config-file: .config
+          fetch-depth: 0
+
+      - name: 安装系统依赖
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential libncurses-dev gawk flex bison quilt \
+            subversion libssl-dev libelf-dev python3 python3-pip git-core file wget unzip libtool
+
+      - name: 更新并安装软件包
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: 加载配置文件
+        run: |
+          cp .config .config.bak
+          make defconfig
+
+      - name: 预下载源码包
+        run: |
+          make -j$(nproc) download
+
+      - name: 开始编译固件
+        run: |
+          make -j$(nproc)
+
+      - name: 准备固件文件
+        run: |
+          mkdir -p ../upload
+          cp -r bin/targets/* ../upload/
+
+      - name: 上传固件到任务页面
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImmortalWrt-Firmware
+          path: ../upload/
