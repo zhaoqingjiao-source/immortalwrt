@@ -13,6 +13,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build OpenWrt Firmware
-        uses: 1715173329/Actions-OpenWrt@main
+        uses: P3TERX/Actions-OpenWrt@main
         with:
           config-file: .config
