@@ -1,98 +1,31 @@
-# 目标平台：MT7628 通用公版
-CONFIG_TARGET_ramips=y
-CONFIG_TARGET_ramips_mt76x8=y
-CONFIG_TARGET_ramips_mt76x8_DEVICE_generic=y
+name: Build ImmortalWrt
+on:
+  push:
+    branches: [ master ]
 
-# 固件格式优化（16MB SPI Flash专用）
-CONFIG_TARGET_ROOTFS_SQUASHFS=y
-CONFIG_TARGET_ROOTFS_JFFS2=n
-CONFIG_TARGET_UBIFS_FS=n
-CONFIG_SMALL_FLASH=y
-CONFIG_TARGET_KERNEL_PARTSIZE=2048
-CONFIG_TARGET_ROOTFS_PARTSIZE=14336
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取源码
+        uses: actions/checkout@v4
 
-# 无线驱动（仅保留MT7628集成的MT7603E）
-CONFIG_PACKAGE_kmod-mt7603e=y
-CONFIG_PACKAGE_kmod-mt76=n
-CONFIG_PACKAGE_kmod-mt76x2=n
-CONFIG_PACKAGE_kmod-mt7615e=n
+      - name: 安装依赖
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential libssl-dev libncurses-dev gawk flex bison git python3 python3-pip unzip wget
 
-# USB核心与4G串口基础
-CONFIG_PACKAGE_kmod-usb-core=y
-CONFIG_PACKAGE_kmod-usb2=y
-CONFIG_PACKAGE_usb-modeswitch=y
-CONFIG_PACKAGE_usb-modeswitch-data=y
-CONFIG_PACKAGE_kmod-usb-serial=y
-CONFIG_PACKAGE_kmod-usb-serial-option=y
-CONFIG_PACKAGE_kmod-usb-serial-wwan=y
-CONFIG_PACKAGE_kmod-usb-acm=y
+      - name: 使用我们的 .config 配置
+        run: |
+          cp .config .config.bak
+          make defconfig
 
-# 4G网卡协议（全兼容覆盖，已添加缺失的cdc-wdm）
-CONFIG_PACKAGE_kmod-usb-net=y
-CONFIG_PACKAGE_kmod-usb-net-cdc-wdm=y
-CONFIG_PACKAGE_kmod-usb-net-qmi-wwan=y
-CONFIG_PACKAGE_kmod-usb-net-cdc-ncm=y
-CONFIG_PACKAGE_kmod-usb-net-rndis=y
-CONFIG_PACKAGE_kmod-usb-net-cdc-ether=y
+      - name: 编译固件
+        run: |
+          make -j$(nproc) V=s
 
-# 4G拨号工具
-CONFIG_PACKAGE_uqmi=y
-CONFIG_PACKAGE_umbim=y
-CONFIG_PACKAGE_comgt=y
-
-# 基础网络组件
-CONFIG_PACKAGE_wpad-basic-mbedtls=y
-CONFIG_PACKAGE_hostapd-common=y
-CONFIG_PACKAGE_iw=y
-CONFIG_PACKAGE_iwinfo=y
-CONFIG_PACKAGE_dnsmasq=y
-CONFIG_PACKAGE_firewall=y
-CONFIG_PACKAGE_ipset=y
-CONFIG_PACKAGE_ppp=y
-CONFIG_PACKAGE_ppp-mod-pppoe=y
-
-# LuCI网页界面（仅保留基础中文）
-CONFIG_PACKAGE_luci=y
-CONFIG_PACKAGE_luci-base=y
-CONFIG_PACKAGE_luci-mod-network=y
-CONFIG_PACKAGE_luci-mod-system=y
-CONFIG_PACKAGE_luci-mod-status=y
-CONFIG_PACKAGE_luci-theme-bootstrap=y
-CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
-CONFIG_PACKAGE_luci-i18n-network-zh-cn=y
-CONFIG_PACKAGE_luci-i18n-system-zh-cn=y
-CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y
-
-# 4G协议网页界面（必须）
-CONFIG_PACKAGE_luci-proto-ppp=y
-CONFIG_PACKAGE_luci-proto-qmi=y
-CONFIG_PACKAGE_luci-proto-ncm=y
-
-# 自动APN必需工具（已删除多余的jq）
-CONFIG_PACKAGE_sms-tool=y
-
-# 系统基础
-CONFIG_PACKAGE_uhttpd=y
-CONFIG_PACKAGE_dropbear=y
-
-# 完全关闭IPv6（大幅节省内存）
-CONFIG_DEFAULT_ipv6=n
-CONFIG_PACKAGE_odhcpd-ipv6only=n
-CONFIG_PACKAGE_dnsmasq-ipv6=n
-CONFIG_PACKAGE_ip6tables=n
-CONFIG_PACKAGE_kmod-ip6tables=n
-
-# 绝对禁用的冗余项（不要改）
-CONFIG_PACKAGE_kmod-usb-storage=n
-CONFIG_PACKAGE_kmod-usb-storage-extras=n
-CONFIG_PACKAGE_kmod-fs-vfat=n
-CONFIG_PACKAGE_kmod-fs-ntfs=n
-CONFIG_PACKAGE_kmod-nls-base=n
-CONFIG_PACKAGE_kmod-nls-cp437=n
-CONFIG_PACKAGE_kmod-nls-iso8859-1=n
-CONFIG_PACKAGE_kmod-usb-ledtrig-usbport=n
-CONFIG_PACKAGE_openssh-keygen=n
-CONFIG_PACKAGE_openssh-sftp-client=n
-CONFIG_PACKAGE_curl=n
-CONFIG_PACKAGE_socat=n
-CONFIG_PACKAGE_luci-proto-modemmanager=n
+      - name: 上传固件
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImmortalWrt-4G-Router-Firmware
+          path: bin/targets/ramips/mt76x8/*.bin
