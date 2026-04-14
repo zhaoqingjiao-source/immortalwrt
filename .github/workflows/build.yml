@@ -13,7 +13,7 @@ jobs:
           sudo apt install -y build-essential libncurses5-dev git python3 unzip wget gawk flex bison libssl-dev zlib1g-dev libelf-dev
 
       - name: 拉取 ImmortalWrt 源码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: immortalwrt/immortalwrt
           ref: openwrt-23.05
@@ -28,12 +28,12 @@ jobs:
         run: |
           cat > .config <<'EOF'
           # ==========================================
-          # MT7628 + 16MB + 4G
+          # MT7628 + 16MB + 4G  完整版修复
           # ==========================================
           
           CONFIG_TARGET_ramips=y
-          CONFIG_TARGET_ramips_mt7628=y
-          CONFIG_TARGET_ramips_mt7628_DEVICE_generic=y
+          CONFIG_TARGET_ramips_mt76x8=y
+          CONFIG_TARGET_ramips_mt76x8_DEVICE_generic=y
           CONFIG_TARGET_OPTIMIZATION="-Os -pipe -march=24kc -mtune=24kc"
           CONFIG_SMALL_FLASH=y
           CONFIG_USE_MKLIBS=y
@@ -49,11 +49,7 @@ jobs:
           # WiFi 驱动
           CONFIG_PACKAGE_kmod-mt76=y
           CONFIG_PACKAGE_kmod-mt76x8=y
-          CONFIG_PACKAGE_kmod-mt7603=n
-          CONFIG_PACKAGE_kmod-mt7628=n
-          CONFIG_PACKAGE_kmod-mt76x2=n
-          CONFIG_PACKAGE_kmod-mt7615e=n
-          CONFIG_PACKAGE_kmod-mt76-usb=n
+          CONFIG_PACKAGE_kmod-mt7628=y
           
           # 4G & PCIe
           CONFIG_PACKAGE_kmod-pcie=y
@@ -82,7 +78,7 @@ jobs:
           CONFIG_PACKAGE_comgt=y
           CONFIG_PACKAGE_chat=y
           
-          # 基础网络（解决 dnsmasq 冲突）
+          # 基础网络
           CONFIG_PACKAGE_dnsmasq=y
           CONFIG_PACKAGE_dnsmasq-full=n
           CONFIG_PACKAGE_firewall=y
@@ -115,7 +111,7 @@ jobs:
           CONFIG_PACKAGE_dropbear=y
           CONFIG_PACKAGE_sms-tool=y
           
-          # 关闭 IPv6 和 USB 存储
+          # 关闭 IPv6
           CONFIG_IPV6=n
           CONFIG_DEFAULT_ipv6=n
           CONFIG_PACKAGE_odhcpd-ipv6only=n
@@ -134,7 +130,8 @@ jobs:
           make -j$(nproc) V=s
 
       - name: 上传固件
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: MT7628-4G-Final
-          path: bin/targets/ramips/mt7628/*sysupgrade.bin
+          path: bin/targets/ramips/mt76x8/*sysupgrade.bin
+          retention-days: 30
