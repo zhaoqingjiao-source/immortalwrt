@@ -1,6 +1,6 @@
 name: Build ImmortalWrt 23.05 MT7628 4G
 on:
-  workflow_dispatch:  # 已正确添加冒号
+  workflow_dispatch:  # 已加冒号，语法错误彻底解决
 
 jobs:
   build:
