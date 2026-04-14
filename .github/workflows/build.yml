@@ -27,101 +27,101 @@ jobs:
       - name: 写入自定义配置 (.config)
         run: |
           cat > .config <<'EOF'
-# ==========================================
-# MT7628 + 16MB + 4G
-# ==========================================
-
-CONFIG_TARGET_ramips=y
-CONFIG_TARGET_ramips_mt7628=y
-CONFIG_TARGET_ramips_mt7628_DEVICE_generic=y
-CONFIG_TARGET_OPTIMIZATION="-Os -pipe -march=24kc -mtune=24kc"
-CONFIG_SMALL_FLASH=y
-CONFIG_USE_MKLIBS=y
-CONFIG_STRIP_KERNEL_EXPORTS=y
-
-# 分区
-CONFIG_TARGET_ROOTFS_SQUASHFS=y
-CONFIG_TARGET_ROOTFS_JFFS2=n
-CONFIG_TARGET_UBIFS_FS=n
-CONFIG_TARGET_KERNEL_PARTSIZE=2048
-CONFIG_TARGET_ROOTFS_PARTSIZE=9728
-
-# WiFi 驱动
-CONFIG_PACKAGE_kmod-mt76=y
-CONFIG_PACKAGE_kmod-mt76x8=y
-CONFIG_PACKAGE_kmod-mt7603=n
-CONFIG_PACKAGE_kmod-mt7628=n
-CONFIG_PACKAGE_kmod-mt76x2=n
-CONFIG_PACKAGE_kmod-mt7615e=n
-CONFIG_PACKAGE_kmod-mt76-usb=n
-
-# 4G & PCIe
-CONFIG_PACKAGE_kmod-pcie=y
-CONFIG_PACKAGE_kmod-pcie-mediatek=y
-CONFIG_PACKAGE_kmod-serial-8250=y
-CONFIG_PACKAGE_kmod-usb-core=y
-CONFIG_PACKAGE_kmod-usb2=y
-CONFIG_PACKAGE_kmod-usb-ohci=n
-
-# USB 串口 & 4G 协议
-CONFIG_PACKAGE_kmod-usb-serial=y
-CONFIG_PACKAGE_kmod-usb-serial-option=y
-CONFIG_PACKAGE_kmod-usb-serial-wwan=y
-CONFIG_PACKAGE_kmod-usb-acm=y
-CONFIG_PACKAGE_usb-modeswitch=y
-CONFIG_PACKAGE_usb-modeswitch-data=y
-CONFIG_PACKAGE_kmod-usb-net=y
-CONFIG_PACKAGE_kmod-usb-net-cdc-wdm=y
-CONFIG_PACKAGE_kmod-usb-net-cdc-mbim=y
-CONFIG_PACKAGE_kmod-usb-net-qmi-wwan=y
-CONFIG_PACKAGE_kmod-usb-net-cdc-ether=y
-
-# 拨号工具
-CONFIG_PACKAGE_uqmi=y
-CONFIG_PACKAGE_umbim=y
-CONFIG_PACKAGE_comgt=y
-CONFIG_PACKAGE_chat=y
-
-# 基础网络
-CONFIG_PACKAGE_wpad-basic-mbedtls=y
-CONFIG_PACKAGE_hostapd-common=y
-CONFIG_PACKAGE_iw=y
-CONFIG_PACKAGE_iwinfo=y
-CONFIG_PACKAGE_dnsmasq=y
-CONFIG_PACKAGE_firewall=y
-CONFIG_PACKAGE_ipset=y
-CONFIG_PACKAGE_ppp=y
-CONFIG_PACKAGE_ppp-mod-pppoe=y
-
-# LuCI
-CONFIG_PACKAGE_luci=y
-CONFIG_PACKAGE_luci-base=y
-CONFIG_PACKAGE_luci-mod-network=y
-CONFIG_PACKAGE_luci-mod-system=y
-CONFIG_PACKAGE_luci-mod-status=y
-CONFIG_PACKAGE_luci-theme-bootstrap=y
-CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
-CONFIG_PACKAGE_luci-i18n-network-zh-cn=y
-CONFIG_PACKAGE_luci-i18n-system-zh-cn=y
-CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y
-CONFIG_PACKAGE_luci-proto-ppp=y
-CONFIG_PACKAGE_luci-proto-3g=y
-CONFIG_PACKAGE_luci-proto-qmi=y
-CONFIG_PACKAGE_luci-proto-mbim=y
-
-# 系统工具
-CONFIG_PACKAGE_uhttpd=y
-CONFIG_PACKAGE_dropbear=y
-CONFIG_PACKAGE_sms-tool=y
-
-# 关闭 IPv6 和 USB 存储
-CONFIG_IPV6=n
-CONFIG_DEFAULT_ipv6=n
-CONFIG_PACKAGE_odhcpd-ipv6only=n
-CONFIG_PACKAGE_kmod-ip6tables=n
-CONFIG_PACKAGE_kmod-usb-storage=n
-CONFIG_PACKAGE_kmod-fs-vfat=n
-EOF
+          # ==========================================
+          # MT7628 + 16MB + 4G
+          # ==========================================
+          
+          CONFIG_TARGET_ramips=y
+          CONFIG_TARGET_ramips_mt7628=y
+          CONFIG_TARGET_ramips_mt7628_DEVICE_generic=y
+          CONFIG_TARGET_OPTIMIZATION="-Os -pipe -march=24kc -mtune=24kc"
+          CONFIG_SMALL_FLASH=y
+          CONFIG_USE_MKLIBS=y
+          CONFIG_STRIP_KERNEL_EXPORTS=y
+          
+          # 分区
+          CONFIG_TARGET_ROOTFS_SQUASHFS=y
+          CONFIG_TARGET_ROOTFS_JFFS2=n
+          CONFIG_TARGET_UBIFS_FS=n
+          CONFIG_TARGET_KERNEL_PARTSIZE=2048
+          CONFIG_TARGET_ROOTFS_PARTSIZE=9728
+          
+          # WiFi 驱动
+          CONFIG_PACKAGE_kmod-mt76=y
+          CONFIG_PACKAGE_kmod-mt76x8=y
+          CONFIG_PACKAGE_kmod-mt7603=n
+          CONFIG_PACKAGE_kmod-mt7628=n
+          CONFIG_PACKAGE_kmod-mt76x2=n
+          CONFIG_PACKAGE_kmod-mt7615e=n
+          CONFIG_PACKAGE_kmod-mt76-usb=n
+          
+          # 4G & PCIe
+          CONFIG_PACKAGE_kmod-pcie=y
+          CONFIG_PACKAGE_kmod-pcie-mediatek=y
+          CONFIG_PACKAGE_kmod-serial-8250=y
+          CONFIG_PACKAGE_kmod-usb-core=y
+          CONFIG_PACKAGE_kmod-usb2=y
+          CONFIG_PACKAGE_kmod-usb-ohci=n
+          
+          # USB 串口 & 4G 协议
+          CONFIG_PACKAGE_kmod-usb-serial=y
+          CONFIG_PACKAGE_kmod-usb-serial-option=y
+          CONFIG_PACKAGE_kmod-usb-serial-wwan=y
+          CONFIG_PACKAGE_kmod-usb-acm=y
+          CONFIG_PACKAGE_usb-modeswitch=y
+          CONFIG_PACKAGE_usb-modeswitch-data=y
+          CONFIG_PACKAGE_kmod-usb-net=y
+          CONFIG_PACKAGE_kmod-usb-net-cdc-wdm=y
+          CONFIG_PACKAGE_kmod-usb-net-cdc-mbim=y
+          CONFIG_PACKAGE_kmod-usb-net-qmi-wwan=y
+          CONFIG_PACKAGE_kmod-usb-net-cdc-ether=y
+          
+          # 拨号工具
+          CONFIG_PACKAGE_uqmi=y
+          CONFIG_PACKAGE_umbim=y
+          CONFIG_PACKAGE_comgt=y
+          CONFIG_PACKAGE_chat=y
+          
+          # 基础网络
+          CONFIG_PACKAGE_wpad-basic-mbedtls=y
+          CONFIG_PACKAGE_hostapd-common=y
+          CONFIG_PACKAGE_iw=y
+          CONFIG_PACKAGE_iwinfo=y
+          CONFIG_PACKAGE_dnsmasq=y
+          CONFIG_PACKAGE_firewall=y
+          CONFIG_PACKAGE_ipset=y
+          CONFIG_PACKAGE_ppp=y
+          CONFIG_PACKAGE_ppp-mod-pppoe=y
+          
+          # LuCI
+          CONFIG_PACKAGE_luci=y
+          CONFIG_PACKAGE_luci-base=y
+          CONFIG_PACKAGE_luci-mod-network=y
+          CONFIG_PACKAGE_luci-mod-system=y
+          CONFIG_PACKAGE_luci-mod-status=y
+          CONFIG_PACKAGE_luci-theme-bootstrap=y
+          CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-network-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-system-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y
+          CONFIG_PACKAGE_luci-proto-ppp=y
+          CONFIG_PACKAGE_luci-proto-3g=y
+          CONFIG_PACKAGE_luci-proto-qmi=y
+          CONFIG_PACKAGE_luci-proto-mbim=y
+          
+          # 系统工具
+          CONFIG_PACKAGE_uhttpd=y
+          CONFIG_PACKAGE_dropbear=y
+          CONFIG_PACKAGE_sms-tool=y
+          
+          # 关闭 IPv6 和 USB 存储
+          CONFIG_IPV6=n
+          CONFIG_DEFAULT_ipv6=n
+          CONFIG_PACKAGE_odhcpd-ipv6only=n
+          CONFIG_PACKAGE_kmod-ip6tables=n
+          CONFIG_PACKAGE_kmod-usb-storage=n
+          CONFIG_PACKAGE_kmod-fs-vfat=n
+          EOF
 
       - name: 生成配置并下载
         run: |
