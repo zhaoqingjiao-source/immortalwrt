@@ -10,7 +10,7 @@ jobs:
       - name: 安装编译依赖
         run: |
           sudo apt update
-          sudo apt install -y build-essential libncurses5-dev git python3 unzip wget gawk flex bison libssl-dev zlib-dev libelf-dev
+          sudo apt install -y build-essential libncurses5-dev git python3 unzip wget gawk flex bison libssl-dev zlib1g-dev libelf-dev
 
       - name: 拉取 ImmortalWrt 源码
         uses: actions/checkout@v4
@@ -121,8 +121,8 @@ jobs:
           CONFIG_PACKAGE_kmod-ip6tables=n
           CONFIG_PACKAGE_kmod-usb-storage=n
           CONFIG_PACKAGE_kmod-fs-vfat=n
-          EOF
-
+EOF
+          
       - name: 生成配置并下载
         run: |
           make defconfig
