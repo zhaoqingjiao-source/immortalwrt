@@ -7,7 +7,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # 1. 增加 Swap 防止内存溢出 (GitHub Actions 内存较小，编译 OpenWrt 容易挂)
+      # 1. 增加 Swap 防止内存溢出
       - name: 增加 Swap 空间
         uses: pierotofy/set-swap-space@master
         with:
@@ -33,106 +33,79 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      # 5. 写入配置 (重点修改了 dnsmasq 部分)
+      # 5. 写入配置 (这里是最容易出错的地方，请严格按此格式)
       - name: 写入自定义配置 (.config)
-        run: |-
-          cat > .config <<'EOF'
-          # ==========================================
-          # 基础系统设置 (MT7628 + 16MB + 4G)
-          # ==========================================
-          CONFIG_TARGET_ramips=y
-          CONFIG_TARGET_ramips_mt7628=y
-          CONFIG_TARGET_ramips_mt7628_DEVICE_generic=y
-          CONFIG_TARGET_OPTIMIZATION="-Os -pipe -march=24kc -mtune=24kc"
-          CONFIG_SMALL_FLASH=y
-          CONFIG_USE_MKLIBS=y
-          CONFIG_STRIP_KERNEL_EXPORTS=y
-          
-          # 分区设置 (根据你的需求 2M Kernel + 9.5M Rootfs)
-          CONFIG_TARGET_ROOTFS_SQUASHFS=y
-          CONFIG_TARGET_ROOTFS_JFFS2=n
-          CONFIG_TARGET_UBIFS_FS=n
-          CONFIG_TARGET_KERNEL_PARTSIZE=2048
-          CONFIG_TARGET_ROOTFS_PARTSIZE=9728
-          
-          # ==========================================
-          # 核心组件冲突解决 (重点)
-          # ==========================================
-          # 启用 full 版 dnsmasq
-          CONFIG_PACKAGE_dnsmasq-full=y
-          CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y
-          CONFIG_PACKAGE_dnsmasq_full_dnssec=y
-          CONFIG_PACKAGE_dnsmasq_full_ipset=y
-          # 禁用默认版 dnsmasq (防止冲突)
-          CONFIG_PACKAGE_dnsmasq=n
-          
-          # ==========================================
-          # 驱动与网络
-          # ==========================================
-          # WiFi 驱动 (mt7628 内置 wifi)
-          CONFIG_PACKAGE_kmod-mt76=y
-          CONFIG_PACKAGE_kmod-mt76x8=y
-          CONFIG_PACKAGE_kmod-mt7603=n
-          CONFIG_PACKAGE_kmod-mt7628=n
-          CONFIG_PACKAGE_kmod-mt76x2=n
-          CONFIG_PACKAGE_kmod-mt7615e=n
-          CONFIG_PACKAGE_kmod-mt76-usb=n
-          
-          # 4G & PCIe
-          CONFIG_PACKAGE_kmod-pcie=y
-          CONFIG_PACKAGE_kmod-pcie-mediatek=y
-          CONFIG_PACKAGE_kmod-serial-8250=y
-          CONFIG_PACKAGE_kmod-usb-core=y
-          CONFIG_PACKAGE_kmod-usb2=y
-          CONFIG_PACKAGE_kmod-usb-ohci=n
-          
-          # USB 串口 & 4G 协议
-          CONFIG_PACKAGE_kmod-usb-serial=y
-          CONFIG_PACKAGE_kmod-usb-serial-option=y
-          CONFIG_PACKAGE_kmod-usb-serial-wwan=y
-          CONFIG_PACKAGE_kmod-usb-acm=y
-          CONFIG_PACKAGE_usb-modeswitch=y
-          CONFIG_PACKAGE_usb-modeswitch-data=y
-          CONFIG_PACKAGE_kmod-usb-net=y
-          CONFIG_PACKAGE_kmod-usb-net-cdc-wdm=y
-          CONFIG_PACKAGE_kmod-usb-net-cdc-mbim=y
-          CONFIG_PACKAGE_kmod-usb-net-qmi-wwan=y
-          CONFIG_PACKAGE_kmod-usb-net-cdc-ether=y
-          
-          # 拨号工具
-          CONFIG_PACKAGE_uqmi=y
-          CONFIG_PACKAGE_umbim=y
-          CONFIG_PACKAGE_comgt=y
-          CONFIG_PACKAGE_chat=y
-          
-          # 基础网络
-          CONFIG_PACKAGE_wpad-basic-mbedtls=y
-          CONFIG_PACKAGE_hostapd-common=y
-          CONFIG_PACKAGE_iw=y
-          CONFIG_PACKAGE_iwinfo=y
-          CONFIG_PACKAGE_firewall=y
-          CONFIG_PACKAGE_ipset=y
-          CONFIG_PACKAGE_ppp=y
-          CONFIG_PACKAGE_ppp-mod-pppoe=y
-          
-          # ==========================================
-          # LuCI 界面
-          # ==========================================
-          CONFIG_PACKAGE_luci=y
-          CONFIG_PACKAGE_luci-base=y
-          CONFIG_PACKAGE_luci-mod-network=y
-          CONFIG_PACKAGE_luci-mod-system=y
-          CONFIG_PACKAGE_luci-mod-status=y
-          CONFIG_PACKAGE_luci-theme-bootstrap=y
-          CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
-          CONFIG_PACKAGE_luci-i18n-network-zh-cn=y
-          CONFIG_PACKAGE_luci-i18n-system-zh-cn=y
-          CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y
-          CONFIG_PACKAGE_luci-proto-ppp=y
-          CONFIG_PACKAGE_luci-proto-3g=y
-          CONFIG_PACKAGE_luci-proto-qmi=y
-          CONFIG_PACKAGE_luci-proto-mbim=y
-          
-          # 系统工具
-          CONFIG_PACKAGE_uhttpd=y
-          CONFIG_PACKAGE_dropbear=y
+        run: |
+          cat > .config <<EOF
+CONFIG_TARGET_ramips=y
+CONFIG_TARGET_ramips_mt7628=y
+CONFIG_TARGET_ramips_mt7628_DEVICE_generic=y
+CONFIG_TARGET_OPTIMIZATION="-Os -pipe -march=24kc -mtune=24kc"
+CONFIG_SMALL_FLASH=y
+CONFIG_TARGET_ROOTFS_SQUASHFS=y
+CONFIG_TARGET_ROOTFS_JFFS2=n
+CONFIG_TARGET_KERNEL_PARTSIZE=4
+CONFIG_TARGET_ROOTFS_PARTSIZE=12
+
+# 修复 dnsmasq 冲突
+CONFIG_PACKAGE_dnsmasq=n
+CONFIG_PACKAGE_dnsmasq-full=y
+CONFIG_PACKAGE_dnsmasq_full_dhcp=y
+CONFIG_PACKAGE_dnsmasq_full_dhcpv6=y
+CONFIG_PACKAGE_dnsmasq_full_dnssec=y
+CONFIG_PACKAGE_dnsmasq_full_ipset=y
+CONFIG_PACKAGE_dnsmasq_full_noid=y
+CONFIG_PACKAGE_dnsmasq_full_tftp=y
+
+# WiFi & 4G 驱动
+CONFIG_PACKAGE_kmod-mt76=y
+CONFIG_PACKAGE_kmod-mt76x8=y
+CONFIG_PACKAGE_kmod-usb3=n
+CONFIG_PACKAGE_kmod-usb2=y
+CONFIG_PACKAGE_kmod-usb-ohci=y
+CONFIG_PACKAGE_kmod-usb-serial=y
+CONFIG_PACKAGE_kmod-usb-serial-option=y
+CONFIG_PACKAGE_kmod-usb-net-cdc-ether=y
+CONFIG_PACKAGE_kmod-usb-net-qmi-wwan=y
+CONFIG_PACKAGE_kmod-usb-net-cdc-wdm=y
+CONFIG_PACKAGE_usb-modeswitch=y
+
+# 拨号工具
+CONFIG_PACKAGE_comgt=y
+CONFIG_PACKAGE_uqmi=y
+CONFIG_PACKAGE_umbim=y
+
+# LuCI
+CONFIG_PACKAGE_luci=y
+CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
+CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y
+CONFIG_PACKAGE_luci-i18n-system-zh-cn=y
+CONFIG_PACKAGE_luci-i18n-network-zh-cn=y
+CONFIG_PACKAGE_luci-proto-ppp=y
+CONFIG_PACKAGE_luci-proto-qmi=y
+CONFIG_PACKAGE_luci-proto-mbim=y
+
+# 移除不必要的包以节省空间
+CONFIG_PACKAGE_ipv6helper=n
+CONFIG_PACKAGE_odhcp6c=n
+CONFIG_PACKAGE_urngd=n
+EOF
+          # 注意：上面的 EOF 必须顶格写，前面不能有空格
+
+      # 6. 生成配置
+      - name: 生成配置并下载
+        run: |
+          make defconfig
+          make download -j$(nproc)
+
+      # 7. 开始编译
+      - name: 开始编译
+        run: |
+          make -j$(nproc) V=s
+
+      # 8. 上传固件
+      - name: 上传固件
+        uses: actions/upload-artifact@v4
+        with:
+          name: MT7628-4G-Final
+          path: bin/targets/ramips/mt7628/*sysupgrade.bin
