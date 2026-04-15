@@ -1,4 +1,4 @@
-name: Build ImmortalWrt 23.05 for FW28-V21 (Generic MT7628 4G)
+name: Build ImmortalWrt 23.05 for FW28-V21 (Auto APN 4G)
 
 on:
   workflow_dispatch:
@@ -33,7 +33,7 @@ jobs:
 
           / {
           	compatible = "fw28,v21", "mediatek,mt7628an-soc";
-          	model = "FW28-V21 (Generic MT7628)";
+          	model = "FW28-V21 (Generic MT7628 with 4G)";
 
           	chosen {
           		bootargs = "console=ttyS0,57600";
@@ -49,7 +49,7 @@ jobs:
 
           		reset {
           			label = "reset";
-          			gpios = <&gpio 38 GPIO_ACTIVE_LOW>; /* 常见值，若无效可改 */
+          			gpios = <&gpio 38 GPIO_ACTIVE_LOW>;
           			linux,code = <KEY_RESTART>;
           		};
           	};
@@ -59,7 +59,7 @@ jobs:
 
           		power {
           			label = "green:power";
-          			gpios = <&gpio 44 GPIO_ACTIVE_LOW>; /* 常见值 */
+          			gpios = <&gpio 44 GPIO_ACTIVE_LOW>;
           		};
           	};
           };
@@ -70,7 +70,6 @@ jobs:
           };
 
           &esw {
-          	/* 网口顺序盲测值，若插错可调整 */
           	mediatek,portmap = <0x2f>;
           };
 
@@ -78,11 +77,9 @@ jobs:
           	status = "okay";
           	nvmem-cells = <&eeprom_factory_0>;
           	nvmem-cell-names = "eeprom";
-          	/* WiFi校准数据偏移，常见为0x0或0x8000 */
           	mediatek,mtd-eeprom = <&factory 0x0>;
           };
 
-          /* 关键：启用 PCIe 控制器，为4G模块供电 */
           &pcie {
           	status = "okay";
           };
@@ -107,7 +104,6 @@ jobs:
           			#address-cells = <1>;
           			#size-cells = <1>;
 
-          			/* 公版常见分区，若刷后无法启动请根据编程器备份调整 */
           			partition@0 {
           				label = "u-boot";
           				reg = <0x0 0x30000>;
@@ -140,7 +136,6 @@ jobs:
 
           			partition@50000 {
           				label = "firmware";
-          				/* 根据实际 Flash 大小调整 (16MB 示例) */
           				reg = <0x50000 0xfb0000>;
           				compatible = "denx,uimage";
           			};
@@ -161,10 +156,122 @@ jobs:
             IMAGE_SIZE := 16000k
             DEVICE_VENDOR := FW28
             DEVICE_MODEL := V21
-            DEVICE_PACKAGES := kmod-usb2 kmod-usb-ohci kmod-usb-serial-option kmod-usb-net-qmi-wwan uqmi umbim
+            DEVICE_PACKAGES := kmod-usb2 kmod-usb-ohci kmod-usb-serial-option kmod-usb-net-qmi-wwan modemmanager luci-proto-modemmanager usb-modeswitch
             SUPPORTED_DEVICES += fw28,v21
           endef
           TARGET_DEVICES += fw28-v21
+          EOF
+
+      - name: 创建内置配置文件 (自动APN脚本 + 预配置网络)
+        run: |
+          mkdir -p files/etc/hotplug.d/iface
+          mkdir -p files/etc/config
+
+          # 1. 自动APN识别脚本
+          cat > files/etc/hotplug.d/iface/99-auto-apn <<'EOF'
+          #!/bin/sh
+          [ "$ACTION" = "ifup" ] && [ "$INTERFACE" = "4g" ] || exit 0
+
+          logger -t "auto-apn" "4G接口已启动，开始自动检测APN..."
+
+          # 等待ModemManager完全初始化
+          sleep 5
+
+          # 获取第一个调制解调器编号
+          MODEM_NUM=$(mmcli -L 2>/dev/null | grep -oE '[0-9]+' | head -1)
+          if [ -z "$MODEM_NUM" ]; then
+              logger -t "auto-apn" "未找到调制解调器，稍后重试"
+              exit 1
+          fi
+
+          # 获取IMSI
+          IMSI=$(mmcli -m "$MODEM_NUM" --3gpp-get-imei 2>/dev/null | grep -oE "imsi: '[0-9]+'" | cut -d"'" -f2)
+          if [ -z "$IMSI" ]; then
+              logger -t "auto-apn" "无法获取IMSI，可能SIM卡未就绪"
+              exit 1
+          fi
+
+          logger -t "auto-apn" "检测到SIM卡，IMSI: $IMSI"
+
+          # 根据MCC+MNC匹配APN
+          MCCMNC=$(echo "$IMSI" | cut -c1-5)
+          case "$MCCMNC" in
+              46000|46002|46004|46007|46008) APN="cmnet" ;;  # 中国移动
+              46001|46006|46009)             APN="3gnet" ;; # 中国联通
+              46003|46005|46011)             APN="ctnet" ;; # 中国电信
+              *)                             APN=""        ;; # 未知运营商留空，让网络下发
+          esac
+
+          CURRENT_APN=$(uci -q get network.4g.apn)
+          if [ -n "$APN" ] && [ "$CURRENT_APN" != "$APN" ]; then
+              logger -t "auto-apn" "检测到运营商 $MCCMNC，自动设置APN为 '$APN'"
+              uci set network.4g.apn="$APN"
+              uci commit network
+              /etc/init.d/network reload
+          elif [ -z "$APN" ]; then
+              logger -t "auto-apn" "未知运营商，保持APN为空，将由网络侧自动下发"
+          else
+              logger -t "auto-apn" "APN已是 '$APN'，无需更改"
+          fi
+          EOF
+
+          chmod +x files/etc/hotplug.d/iface/99-auto-apn
+
+          # 2. 预配置一个名为4G的ModemManager接口（APN留空，适配物联网卡）
+          cat > files/etc/config/network <<'EOF'
+          config interface 'loopback'
+          	option device 'lo'
+          	option proto 'static'
+          	option ipaddr '127.0.0.1'
+          	option netmask '255.0.0.0'
+
+          config globals 'globals'
+          	option ula_prefix 'fd00::/48'
+
+          config device
+          	option name 'br-lan'
+          	option type 'bridge'
+          	list ports 'eth0.1'
+
+          config interface 'lan'
+          	option device 'br-lan'
+          	option proto 'static'
+          	option ipaddr '192.168.1.1'
+          	option netmask '255.255.255.0'
+          	option ip6assign '60'
+
+          config device
+          	option name 'eth0.2'
+          	option type '8021q'
+          	option ifname 'eth0'
+          	option vid '2'
+
+          config interface 'wan'
+          	option device 'eth0.2'
+          	option proto 'dhcp'
+
+          # 预置4G接口（ModemManager模式，APN留空）
+          config interface '4g'
+          	option proto 'modemmanager'
+          	option device '/sys/class/net/wwan0'
+          	option apn ''
+          	option pincode ''
+          	option username ''
+          	option password ''
+          	option autoconnect '1'
+          	option ipv6 'auto'
+
+          # 将4G接口加入wan防火墙区域，使其能正常上网
+          config rule
+          	option name 'Allow-4G-Input'
+          	option src '4g'
+          	option target 'ACCEPT'
+
+          config rule
+          	option name 'Allow-4G-Forward'
+          	option src '4g'
+          	option dest '*'
+          	option target 'ACCEPT'
           EOF
 
       - name: 写入编译配置 (.config)
@@ -192,7 +299,7 @@ jobs:
           CONFIG_PACKAGE_kmod-usb-ohci=y
           CONFIG_PACKAGE_kmod-usb-ehci=y
 
-          # 展锐4G模块驱动（USB串口 + QMI）
+          # 4G模块驱动
           CONFIG_PACKAGE_kmod-usb-serial=y
           CONFIG_PACKAGE_kmod-usb-serial-option=y
           CONFIG_PACKAGE_kmod-usb-serial-wwan=y
@@ -202,9 +309,11 @@ jobs:
           CONFIG_PACKAGE_usb-modeswitch=y
           CONFIG_PACKAGE_usb-modeswitch-data=y
 
-          # 拨号工具（QMI模式）
-          CONFIG_PACKAGE_uqmi=y
-          CONFIG_PACKAGE_umbim=y
+          # 使用ModemManager进行拨号管理（自动APN的核心）
+          CONFIG_PACKAGE_modemmanager=y
+          CONFIG_PACKAGE_luci-proto-modemmanager=y
+          # 不选uqmi，避免冲突
+          # CONFIG_PACKAGE_uqmi is not set
 
           # 网络基础
           CONFIG_PACKAGE_dnsmasq=y
@@ -213,7 +322,7 @@ jobs:
           CONFIG_PACKAGE_iw=y
           CONFIG_PACKAGE_iwinfo=y
 
-          # LuCI界面 + 中文 + QMI/MBIM支持
+          # LuCI界面 + 中文
           CONFIG_PACKAGE_luci=y
           CONFIG_PACKAGE_luci-base=y
           CONFIG_PACKAGE_luci-mod-network=y
@@ -224,8 +333,6 @@ jobs:
           CONFIG_PACKAGE_luci-i18n-network-zh-cn=y
           CONFIG_PACKAGE_luci-i18n-system-zh-cn=y
           CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y
-          CONFIG_PACKAGE_luci-proto-qmi=y
-          CONFIG_PACKAGE_luci-proto-mbim=y
 
           # Web服务器和SSH
           CONFIG_PACKAGE_uhttpd=y
@@ -259,6 +366,6 @@ jobs:
       - name: 上传编译好的固件
         uses: actions/upload-artifact@v4
         with:
-          name: FW28-V21-ImmortalWrt-4G
+          name: FW28-V21-AutoAPN-4G
           path: bin/targets/ramips/mt76x8/*sysupgrade.bin
           if-no-files-found: error
