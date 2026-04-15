@@ -1,4 +1,4 @@
-name: Build ImmortalWrt 23.05 MT7628 4G
+name: Build ImmortalWrt 23.05 for FW28-V21 (Generic MT7628 4G)
 
 on:
   workflow_dispatch:
@@ -19,20 +19,160 @@ jobs:
           ref: openwrt-23.05
           fetch-depth: 1
 
-      - name: 修改设备树启用USB
+      - name: 创建 FW28-V21 公版设备树 (DTS)
         run: |
-          DTS_FILE=$(find target/linux/ramips/dts -name "*awusfree1*" -o -name "*AWUSFREE1*" 2>/dev/null | head -1)
-          if [ -f "$DTS_FILE" ]; then
-            sed -i 's/status = "disabled";/status = "okay";/g' "$DTS_FILE"
-            echo "已修改USB状态: $DTS_FILE"
-          fi
+          cat > target/linux/ramips/dts/mt7628an_fw28-v21.dts <<'EOF'
+          // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 
-      - name: 写入自定义配置 (.config)
+          /dts-v1/;
+          #include "mt7628an.dtsi"
+
+          #include <dt-bindings/gpio/gpio.h>
+          #include <dt-bindings/input/input.h>
+          #include <dt-bindings/leds/common.h>
+
+          / {
+          	compatible = "fw28,v21", "mediatek,mt7628an-soc";
+          	model = "FW28-V21 (Generic MT7628)";
+
+          	chosen {
+          		bootargs = "console=ttyS0,57600";
+          	};
+
+          	memory@0 {
+          		device_type = "memory";
+          		reg = <0x0 0x4000000>; /* 假设 64MB */
+          	};
+
+          	keys {
+          		compatible = "gpio-keys";
+
+          		reset {
+          			label = "reset";
+          			gpios = <&gpio 38 GPIO_ACTIVE_LOW>; /* 常见值，若无效可改 */
+          			linux,code = <KEY_RESTART>;
+          		};
+          	};
+
+          	leds {
+          		compatible = "gpio-leds";
+
+          		power {
+          			label = "green:power";
+          			gpios = <&gpio 44 GPIO_ACTIVE_LOW>; /* 常见值 */
+          		};
+          	};
+          };
+
+          &ethernet {
+          	nvmem-cells = <&macaddr_factory_4>;
+          	nvmem-cell-names = "mac-address";
+          };
+
+          &esw {
+          	/* 网口顺序盲测值，若插错可调整 */
+          	mediatek,portmap = <0x2f>;
+          };
+
+          &wmac {
+          	status = "okay";
+          	nvmem-cells = <&eeprom_factory_0>;
+          	nvmem-cell-names = "eeprom";
+          	/* WiFi校准数据偏移，常见为0x0或0x8000 */
+          	mediatek,mtd-eeprom = <&factory 0x0>;
+          };
+
+          /* 关键：启用 PCIe 控制器，为4G模块供电 */
+          &pcie {
+          	status = "okay";
+          };
+
+          &pcie0 {
+          	wifi@0,0 {
+          		compatible = "mediatek,mt76";
+          		reg = <0x0000 0 0 0 0>;
+          	};
+          };
+
+          &spi0 {
+          	status = "okay";
+
+          	flash@0 {
+          		compatible = "jedec,spi-nor";
+          		reg = <0>;
+          		spi-max-frequency = <40000000>;
+
+          		partitions {
+          			compatible = "fixed-partitions";
+          			#address-cells = <1>;
+          			#size-cells = <1>;
+
+          			/* 公版常见分区，若刷后无法启动请根据编程器备份调整 */
+          			partition@0 {
+          				label = "u-boot";
+          				reg = <0x0 0x30000>;
+          				read-only;
+          			};
+
+          			partition@30000 {
+          				label = "u-boot-env";
+          				reg = <0x30000 0x10000>;
+          				read-only;
+          			};
+
+          			partition@40000 {
+          				label = "factory";
+          				reg = <0x40000 0x10000>;
+          				read-only;
+
+          				compatible = "nvmem-cells";
+          				#address-cells = <1>;
+          				#size-cells = <1>;
+
+          				eeprom_factory_0: eeprom@0 {
+          					reg = <0x0 0x400>;
+          				};
+
+          				macaddr_factory_4: macaddr@4 {
+          					reg = <0x4 0x6>;
+          				};
+          			};
+
+          			partition@50000 {
+          				label = "firmware";
+          				/* 根据实际 Flash 大小调整 (16MB 示例) */
+          				reg = <0x50000 0xfb0000>;
+          				compatible = "denx,uimage";
+          			};
+          		};
+          	};
+          };
+
+          &uart1 {
+          	status = "okay";
+          };
+          EOF
+
+      - name: 添加设备镜像生成规则到 mt76x8.mk
+        run: |
+          cat >> target/linux/ramips/image/mt76x8.mk <<'EOF'
+
+          define Device/fw28-v21
+            IMAGE_SIZE := 16000k
+            DEVICE_VENDOR := FW28
+            DEVICE_MODEL := V21
+            DEVICE_PACKAGES := kmod-usb2 kmod-usb-ohci kmod-usb-serial-option kmod-usb-net-qmi-wwan uqmi umbim
+            SUPPORTED_DEVICES += fw28,v21
+          endef
+          TARGET_DEVICES += fw28-v21
+          EOF
+
+      - name: 写入编译配置 (.config)
         run: |
           cat > .config <<'EOF'
           CONFIG_TARGET_ramips=y
           CONFIG_TARGET_ramips_mt76x8=y
-          CONFIG_TARGET_ramips_mt76x8_DEVICE_alfa-network_awusfree1=y
+          CONFIG_TARGET_ramips_mt76x8_DEVICE_fw28-v21=y
           CONFIG_TARGET_OPTIMIZATION="-Os -pipe -march=24kc -mtune=24kc"
           CONFIG_SMALL_FLASH=y
           CONFIG_USE_MKLIBS=y
@@ -40,20 +180,19 @@ jobs:
 
           CONFIG_TARGET_ROOTFS_SQUASHFS=y
           # CONFIG_TARGET_ROOTFS_JFFS2 is not set
-          # CONFIG_TARGET_UBIFS_FS is not set
           CONFIG_TARGET_KERNEL_PARTSIZE=2048
           CONFIG_TARGET_ROOTFS_PARTSIZE=9728
 
           # WiFi驱动
           CONFIG_PACKAGE_kmod-mt76x8=y
 
-          # USB基础（展锐模块用USB协议）
+          # USB 基础
           CONFIG_PACKAGE_kmod-usb-core=y
           CONFIG_PACKAGE_kmod-usb2=y
           CONFIG_PACKAGE_kmod-usb-ohci=y
           CONFIG_PACKAGE_kmod-usb-ehci=y
 
-          # 展锐4G模块驱动（USB转串口 + QMI）
+          # 展锐4G模块驱动（USB串口 + QMI）
           CONFIG_PACKAGE_kmod-usb-serial=y
           CONFIG_PACKAGE_kmod-usb-serial-option=y
           CONFIG_PACKAGE_kmod-usb-serial-wwan=y
@@ -74,7 +213,7 @@ jobs:
           CONFIG_PACKAGE_iw=y
           CONFIG_PACKAGE_iwinfo=y
 
-          # LuCI界面 + 中文 + QMI拨号支持
+          # LuCI界面 + 中文 + QMI/MBIM支持
           CONFIG_PACKAGE_luci=y
           CONFIG_PACKAGE_luci-base=y
           CONFIG_PACKAGE_luci-mod-network=y
@@ -103,7 +242,7 @@ jobs:
           # CONFIG_PACKAGE_kmod-pcie-mediatek is not set
           EOF
 
-      - name: 生成配置
+      - name: 生成完整配置
         run: make defconfig
 
       - name: 更新并安装 feeds
@@ -111,15 +250,15 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: 下载依赖包
+      - name: 下载所有依赖包
         run: make download -j$(nproc)
 
-      - name: 开始编译
+      - name: 开始编译固件
         run: make -j$(nproc) V=s
 
-      - name: 上传固件
+      - name: 上传编译好的固件
         uses: actions/upload-artifact@v4
         with:
-          name: MT7628-Zhanrui-4G-Auto
+          name: FW28-V21-ImmortalWrt-4G
           path: bin/targets/ramips/mt76x8/*sysupgrade.bin
           if-no-files-found: error
